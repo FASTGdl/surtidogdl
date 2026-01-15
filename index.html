@@ -1,0 +1,216 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <title>F.A.S.T. | Surtido Gdl</title>
+    
+    <link href="https://fonts.googleapis.com/css2?family=Bitter:wght@700&family=Fira+Sans:wght@400;700;900&display=swap" rel="stylesheet">
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
+
+    <style>
+        :root { --alsea-blue: #005782; --strawberry: #F04D62; --sun: #FFCD5B; --cream: #F3EBDA; --sand: #DDD6B4; }
+        body { font-family: 'Fira Sans', sans-serif; background-color: var(--cream); height: 100vh; display: flex; overflow: hidden; margin: 0; }
+        
+        /* Sidebar Compacta */
+        .sidebar { width: 340px; min-width: 340px; background: white; border-right: 2px solid var(--sand); display: flex; flex-direction: column; z-index: 100; }
+        
+        .main-view { flex-grow: 1; display: flex; flex-direction: column; overflow: hidden; }
+        .map-viewport { flex-grow: 1; display: flex; gap: 12px; padding: 15px; overflow-x: auto; -webkit-overflow-scrolling: touch; scroll-behavior: smooth; }
+        
+        .aisle-container { display: flex; flex-direction: column; min-width: 140px; background: white; border-radius: 12px; border: 1px solid var(--sand); box-shadow: 0 2px 4px rgba(0,0,0,0.05); }
+        .aisle-header { background: var(--alsea-blue); color: white; font-family: 'Bitter', serif; padding: 8px; text-align: center; border-radius: 12px 12px 0 0; font-size: 14px; }
+        .aisle-scroll { flex-grow: 1; overflow-y: auto; padding: 8px; -webkit-overflow-scrolling: touch; }
+        .aisle-scroll::-webkit-scrollbar { display: none; }
+        
+        .rack-grid { display: grid; gap: 4px; }
+        .slot { height: 32px; border: 1px solid var(--sand); border-radius: 5px; display: flex; align-items: center; justify-content: center; font-size: 10px; font-weight: 800; color: #94a3b8; cursor: pointer; transition: 0.2s; }
+        
+        .slot.occ-emb { background: #f97316 !important; color: white !important; border: none; }
+        .slot.occ-pro { background: var(--alsea-blue) !important; color: white !important; border: none; }
+        .slot.stagnant { border: 2.5px solid var(--strawberry); }
+        .slot.recent { border: 2.5px solid #22c55e; }
+        .highlight { outline: 4px solid var(--sun); transform: scale(1.03); z-index: 50; }
+
+        /* Estilos de Formulario Compacto */
+        .input-group { border-radius: 12px; padding: 10px; border-left-width: 4px; }
+        input, textarea { background: transparent; width: 100%; outline: none; font-weight: 700; text-transform: uppercase; }
+        input::placeholder, textarea::placeholder { text-transform: none; font-weight: 400; color: #94a3b8; }
+        textarea { font-size: 11px; height: 38px; margin-top: 4px; border-top: 1px solid rgba(0,0,0,0.05); padding-top: 4px; }
+    </style>
+</head>
+<body>
+
+    <aside class="sidebar">
+        <div class="p-5 pb-2 flex items-center gap-3">
+            <div class="bg-[#005782] p-1.5 rounded-lg text-white shadow"><span class="material-icons text-xl">speed</span></div>
+            <div><h1 style="font-family:'Bitter'" class="text-xl font-black text-[#005782] leading-none">F.A.S.T.</h1><p class="text-[9px] font-bold text-slate-400 uppercase tracking-widest">Surtido Gdl</p></div>
+        </div>
+
+        <div class="px-5 mb-4 relative">
+            <span class="material-icons absolute left-8 top-2.5 text-slate-400 text-sm">search</span>
+            <input type="text" id="search" oninput="doSearch(this.value)" placeholder="Buscar posición o ruta..." class="w-full bg-slate-100 p-2.5 pl-9 rounded-xl text-xs font-bold border-2 border-transparent focus:border-[#005782]">
+            <div id="results" class="absolute left-5 right-5 bg-white z-[200] rounded-xl shadow-2xl mt-1 hidden max-h-48 overflow-y-auto border border-sand"></div>
+        </div>
+
+        <div id="editor" class="hidden px-5 space-y-2">
+            <div class="flex justify-between items-end mb-1">
+                <span id="target-id" class="text-4xl font-black italic text-[#005782] leading-none">---</span>
+                <button onclick="closeEditor()" class="text-slate-300 hover:text-slate-500"><span class="material-icons">close</span></button>
+            </div>
+            
+            <div class="input-group bg-orange-50 border-[#f97316]">
+                <label class="text-[9px] font-black text-orange-600 uppercase block leading-none mb-1">Ruta / Embarque</label>
+                <input type="text" id="f-ruta" placeholder="F204" class="text-base border-b border-orange-100 mb-1">
+                <input type="text" id="f-tienda" placeholder="TIENDA" class="text-xs">
+                <textarea id="f-cm-r" placeholder="Comentarios de ruta..."></textarea>
+            </div>
+
+            <div class="input-group bg-blue-50 border-[#005782]">
+                <label class="text-[9px] font-black text-blue-600 uppercase block leading-none mb-1">Producto / Surtido</label>
+                <input type="text" id="f-sku" placeholder="SKU / NOMBRE" class="text-base border-b border-blue-100 mb-1">
+                <input type="text" id="f-dt" placeholder="CANTIDAD" class="text-xs">
+                <textarea id="f-cm-p" placeholder="Comentarios de surtido..."></textarea>
+            </div>
+
+            <div class="p-3 bg-red-50 rounded-xl border border-red-100">
+                <p class="text-[9px] font-black text-red-600 uppercase mb-1 flex items-center gap-1">
+                    <span class="material-icons text-xs">gpp_maybe</span> VALIDACIÓN REQUERIDA:
+                </p>
+                <div class="text-[9px] font-bold text-slate-600 leading-tight space-y-0.5">
+                    <p>• Revisar 5 puntos de estiba correcta.</p>
+                    <p>• Validar LPN vs Etiquetado físico.</p>
+                    <p>• Confirmar ubicación física exacta.</p>
+                </div>
+            </div>
+
+            <div class="pt-1">
+                <button onclick="save()" class="w-full bg-[#005782] text-white py-3 rounded-xl font-black uppercase text-xs shadow-lg active:scale-95 transition-all">Guardar Registro</button>
+                <button onclick="del()" class="w-full text-red-400 py-2 text-[9px] font-black uppercase">Vaciar Posición</button>
+            </div>
+        </div>
+
+        <div id="empty-state" class="flex-grow flex flex-col items-center justify-center text-slate-300 text-center px-10">
+            <span class="material-icons text-5xl mb-2 opacity-10">place</span>
+            <p class="text-xs italic">Toca una posición</p>
+        </div>
+    </aside>
+
+    <main class="main-view">
+        <header class="bg-white border-b-2 border-sand p-4 flex justify-between items-center shadow-sm">
+            <div class="flex gap-6">
+                <div class="flex flex-col"><span class="text-[9px] font-black text-slate-400 uppercase">Ocupación</span><span class="text-xl font-black text-[#005782]" id="st-perc">0%</span></div>
+                <div class="border-l pl-6 flex flex-col"><span class="text-[9px] font-black text-emerald-600 uppercase">Libres</span><span class="text-xl font-black text-emerald-600" id="st-free">0</span></div>
+                <div class="border-l pl-6 flex flex-col"><span class="text-[9px] font-black text-orange-500 uppercase">Ruta</span><span class="text-xl font-black text-orange-500" id="st-r">0</span></div>
+                <div class="border-l pl-6 flex flex-col"><span class="text-[9px] font-black text-blue-500 uppercase">Surtido</span><span class="text-xl font-black text-blue-500" id="st-p">0</span></div>
+            </div>
+            <nav class="bg-slate-100 p-1 rounded-xl flex gap-1">
+                <button onclick="render('seco')" id="btn-seco" class="px-6 py-2.5 rounded-lg text-[10px] font-black uppercase transition-all">Secos</button>
+                <button onclick="render('refri')" id="btn-refri" class="px-6 py-2.5 rounded-lg text-[10px] font-black uppercase transition-all">Refri</button>
+                <button onclick="render('conge')" id="btn-conge" class="px-6 py-2.5 rounded-lg text-[10px] font-black uppercase transition-all">Conge</button>
+            </nav>
+        </header>
+        <div class="map-viewport" id="map-area"></div>
+    </main>
+
+<script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
+    import { getDatabase, ref, set, onValue, remove } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-database.js";
+
+    const fb = { apiKey: "AIzaSyAMVa_jOP06739GhFqMTEGEwUgjJVqPg_M", databaseURL: "https://almacen-67bd1-default-rtdb.firebaseio.com", projectId: "almacen-67bd1" };
+    const app = initializeApp(fb); const db = getDatabase(app);
+    let store = {}, curZ = 'seco';
+
+    const CONFIG = {
+        seco: [{id:'A',s:10,m:1140,t:'both'},{id:'B',s:10,m:1140,t:'both'},{id:'C',s:20,m:1140,t:'C_SPECIAL'},{id:'D',s:10,m:1350,t:'both'},{id:'E',s:10,m:1350,t:'both'},{id:'F',s:10,m:1140,t:'both'},{id:'G',s:10,m:1140,t:'both'},{id:'H',s:10,m:1140,t:'both'},{id:'I',s:10,m:1140,t:'non'}],
+        refri: [{id:'J',s:20,m:440,t:'par'},{id:'K',s:10,m:440,t:'both'},{id:'L',s:10,m:440,t:'both'}],
+        conge: [{id:'M',s:10,m:1140,t:'both'},{id:'N',s:10,m:1140,t:'both'},{id:'O',s:10,m:1140,t:'both'},{id:'P',s:10,m:1140,t:'both'},{id:'Q',s:10,m:830,t:'non'}]
+    };
+
+    window.render = (z) => {
+        curZ = z;
+        ['seco','refri','conge'].forEach(n => document.getElementById('btn-'+n).className = n===z ? 'px-6 py-2.5 rounded-lg text-[10px] font-black uppercase bg-white shadow text-[#005782]' : 'px-6 py-2.5 rounded-lg text-[10px] font-black uppercase text-slate-400');
+        document.getElementById('map-area').innerHTML = CONFIG[z].map(a => `<div class="aisle-container"><div class="aisle-header">${a.id}</div><div class="aisle-scroll"><div class="rack-grid ${a.t==='both'||a.t==='C_SPECIAL'?'grid-cols-2':'grid-cols-1'}">${build(a)}</div></div></div>`).join('');
+        sync();
+    };
+
+    function build(a) {
+        let h = '';
+        for(let i=a.s; i<=a.m; i+=10) {
+            const isPar = i % 20 === 0;
+            if(a.t === 'C_SPECIAL') { if(!isPar && i < 290) continue; }
+            else if(a.t === 'non' && isPar) continue;
+            else if(a.t === 'par' && !isPar) continue;
+            const id = `${a.id}${String(i).padStart(4,'0')}`;
+            h += `<div id="${id}" onclick="edit('${id}')" class="slot">${id.slice(-4)}</div>`;
+        }
+        return h;
+    }
+
+    function sync() {
+        const slots = document.querySelectorAll('.slot[id]');
+        let tRuta=0, tProd=0;
+        slots.forEach(el => {
+            const d = store[el.id]; el.classList.remove('occ-emb','occ-pro','stagnant','recent');
+            if(d) {
+                if(d.r) { el.classList.add('occ-emb'); tRuta++; } else { el.classList.add('occ-pro'); tProd++; }
+                const age = Date.now() - d.t;
+                if(age > 86400000) el.classList.add('stagnant');
+                else if(age < 14400000) el.classList.add('recent');
+            }
+        });
+        document.getElementById('st-perc').innerText = Math.round(((tRuta+tProd)/slots.length)*100)+"%";
+        document.getElementById('st-free').innerText = slots.length - (tRuta+tProd);
+        document.getElementById('st-r').innerText = tRuta;
+        document.getElementById('st-p').innerText = tProd;
+    }
+
+    window.edit = (id) => {
+        document.getElementById('empty-state').classList.add('hidden');
+        document.getElementById('editor').classList.remove('hidden');
+        document.getElementById('target-id').innerText = id;
+        const d = store[id] || {};
+        document.getElementById('f-ruta').value = d.r||''; document.getElementById('f-tienda').value = d.ti||'';
+        document.getElementById('f-sku').value = d.s||''; document.getElementById('f-dt').value = d.dt||'';
+        document.getElementById('f-cm-r').value = d.cmr||''; document.getElementById('f-cm-p').value = d.cmp||'';
+        document.querySelectorAll('.slot').forEach(s => s.classList.remove('highlight'));
+        if(document.getElementById(id)) document.getElementById(id).classList.add('highlight');
+    };
+
+    window.save = () => {
+        const id = document.getElementById('target-id').innerText;
+        set(ref(db, 'almacen/'+id), { 
+            r: document.getElementById('f-ruta').value.toUpperCase(), 
+            ti: document.getElementById('f-tienda').value.toUpperCase(), 
+            s: document.getElementById('f-sku').value.toUpperCase(), 
+            dt: document.getElementById('f-dt').value.toUpperCase(),
+            cmr: document.getElementById('f-cm-r').value, cmp: document.getElementById('f-cm-p').value,
+            t: Date.now() 
+        });
+        closeEditor();
+    };
+
+    window.del = () => { if(confirm("¿Vaciar?")) remove(ref(db, 'almacen/'+document.getElementById('target-id').innerText)); closeEditor(); };
+    window.closeEditor = () => { document.getElementById('editor').classList.add('hidden'); document.getElementById('empty-state').classList.remove('hidden'); };
+    onValue(ref(db, 'almacen/'), s => { store = s.val() || {}; sync(); });
+
+    window.doSearch = (v) => {
+        const r = document.getElementById('results'); if(v.length<2){r.classList.add('hidden');return;}
+        const f = Object.entries(store).filter(([id, d]) => id.includes(v.toUpperCase()) || (d.r && d.r.includes(v.toUpperCase())) || (d.ti && d.ti.includes(v.toUpperCase())));
+        r.innerHTML = f.map(([id, d]) => `<div class="p-2 border-b hover:bg-slate-50 cursor-pointer" onclick="goTo('${id}')"><div class="flex justify-between font-black text-[10px] text-[#005782]"><span>${id}</span><span>${d.r || 'STOCK'}</span></div></div>`).join('');
+        r.classList.remove('hidden');
+    };
+
+    window.goTo = (id) => {
+        const L = id[0]; const z = ['A','B','C','D','E','F','G','H','I'].includes(L)?'seco':(['J','K','L'].includes(L)?'refri':'conge');
+        if(curZ !== z) render(z);
+        setTimeout(() => { const el = document.getElementById(id); if(el){el.scrollIntoView({behavior:'smooth',block:'center',inline:'center'});edit(id);} }, 300);
+        document.getElementById('results').classList.add('hidden'); document.getElementById('search').value="";
+    };
+
+    window.onload = () => render('seco');
+</script>
+</body>
+</html>
