@@ -14,18 +14,17 @@
         :root { --alsea-blue: #005782; --strawberry: #F04D62; --sun: #FFCD5B; --cream: #F3EBDA; --sand: #DDD6B4; }
         body { font-family: 'Fira Sans', sans-serif; background-color: var(--cream); height: 100vh; display: flex; overflow: hidden; margin: 0; }
         
-        /* Sidebar Compacta */
         .sidebar { width: 340px; min-width: 340px; background: white; border-right: 2px solid var(--sand); display: flex; flex-direction: column; z-index: 100; }
-        
         .main-view { flex-grow: 1; display: flex; flex-direction: column; overflow: hidden; }
         .map-viewport { flex-grow: 1; display: flex; gap: 12px; padding: 15px; overflow-x: auto; -webkit-overflow-scrolling: touch; scroll-behavior: smooth; }
         
         .aisle-container { display: flex; flex-direction: column; min-width: 140px; background: white; border-radius: 12px; border: 1px solid var(--sand); box-shadow: 0 2px 4px rgba(0,0,0,0.05); }
         .aisle-header { background: var(--alsea-blue); color: white; font-family: 'Bitter', serif; padding: 8px; text-align: center; border-radius: 12px 12px 0 0; font-size: 14px; }
-        .aisle-scroll { flex-grow: 1; overflow-y: auto; padding: 8px; -webkit-overflow-scrolling: touch; }
+        .aisle-scroll { flex-grow: 1; overflow-y: auto; padding: 8px; }
         .aisle-scroll::-webkit-scrollbar { display: none; }
         
         .rack-grid { display: grid; gap: 4px; }
+        /* RACK LIMPIO: Solo número */
         .slot { height: 32px; border: 1px solid var(--sand); border-radius: 5px; display: flex; align-items: center; justify-content: center; font-size: 10px; font-weight: 800; color: #94a3b8; cursor: pointer; transition: 0.2s; }
         
         .slot.occ-emb { background: #f97316 !important; color: white !important; border: none; }
@@ -34,11 +33,13 @@
         .slot.recent { border: 2.5px solid #22c55e; }
         .highlight { outline: 4px solid var(--sun); transform: scale(1.03); z-index: 50; }
 
-        /* Estilos de Formulario Compacto */
         .input-group { border-radius: 12px; padding: 10px; border-left-width: 4px; }
         input, textarea { background: transparent; width: 100%; outline: none; font-weight: 700; text-transform: uppercase; }
-        input::placeholder, textarea::placeholder { text-transform: none; font-weight: 400; color: #94a3b8; }
-        textarea { font-size: 11px; height: 38px; margin-top: 4px; border-top: 1px solid rgba(0,0,0,0.05); padding-top: 4px; }
+        
+        /* Botones de Formato (Referencia Visual) */
+        .unit-btn { flex: 1; padding: 8px; border-radius: 10px; border: 2px solid #f1f5f9; display: flex; flex-direction: column; align-items: center; background: white; color: #94a3b8; transition: 0.2s; }
+        .unit-btn.active { border-color: var(--alsea-blue); background: #f0f9ff; color: var(--alsea-blue); }
+        .unit-btn span { font-size: 18px; }
     </style>
 </head>
 <body>
@@ -51,38 +52,42 @@
 
         <div class="px-5 mb-4 relative">
             <span class="material-icons absolute left-8 top-2.5 text-slate-400 text-sm">search</span>
-            <input type="text" id="search" oninput="doSearch(this.value)" placeholder="Buscar posición o ruta..." class="w-full bg-slate-100 p-2.5 pl-9 rounded-xl text-xs font-bold border-2 border-transparent focus:border-[#005782]">
-            <div id="results" class="absolute left-5 right-5 bg-white z-[200] rounded-xl shadow-2xl mt-1 hidden max-h-48 overflow-y-auto border border-sand"></div>
+            <input type="text" id="search" oninput="doSearch(this.value)" placeholder="Buscar posición, SKU o ruta..." class="w-full bg-slate-100 p-2.5 pl-9 rounded-xl text-xs font-bold border-2 border-transparent focus:border-[#005782]">
+            <div id="results" class="absolute left-5 right-5 bg-white z-[200] rounded-xl shadow-2xl mt-1 hidden max-h-60 overflow-y-auto border border-sand"></div>
         </div>
 
-        <div id="editor" class="hidden px-5 space-y-2">
+        <div id="editor" class="hidden px-5 space-y-2 overflow-y-auto pb-6">
             <div class="flex justify-between items-end mb-1">
                 <span id="target-id" class="text-4xl font-black italic text-[#005782] leading-none">---</span>
                 <button onclick="closeEditor()" class="text-slate-300 hover:text-slate-500"><span class="material-icons">close</span></button>
             </div>
             
             <div class="input-group bg-orange-50 border-[#f97316]">
-                <label class="text-[9px] font-black text-orange-600 uppercase block leading-none mb-1">Ruta / Embarque</label>
+                <label class="text-[9px] font-black text-orange-600 uppercase block mb-1">Ruta / Embarque</label>
                 <input type="text" id="f-ruta" placeholder="F204" class="text-base border-b border-orange-100 mb-1">
                 <input type="text" id="f-tienda" placeholder="TIENDA" class="text-xs">
-                <textarea id="f-cm-r" placeholder="Comentarios de ruta..."></textarea>
             </div>
 
             <div class="input-group bg-blue-50 border-[#005782]">
-                <label class="text-[9px] font-black text-blue-600 uppercase block leading-none mb-1">Producto / Surtido</label>
+                <label class="text-[9px] font-black text-blue-600 uppercase block mb-1">Producto / Surtido</label>
                 <input type="text" id="f-sku" placeholder="SKU / NOMBRE" class="text-base border-b border-blue-100 mb-1">
                 <input type="text" id="f-dt" placeholder="CANTIDAD" class="text-xs">
-                <textarea id="f-cm-p" placeholder="Comentarios de surtido..."></textarea>
+            </div>
+
+            <div class="p-2">
+                <label class="text-[9px] font-black text-slate-500 uppercase block mb-2 text-center">Referencia de Surtido</label>
+                <div class="flex gap-2">
+                    <button onclick="setUnit('📦')" id="btn-box" class="unit-btn"><span class="material-icons">inventory_2</span><b class="text-[8px]">CAJA</b></button>
+                    <button onclick="setUnit('🥡')" id="btn-pack" class="unit-btn"><span class="material-icons">all_inbox</span><b class="text-[8px]">PQTE</b></button>
+                    <button onclick="setUnit('🍎')" id="btn-piece" class="unit-btn"><span class="material-icons">category</span><b class="text-[8px]">PZA</b></button>
+                </div>
+                <input type="hidden" id="f-unit" value="">
             </div>
 
             <div class="p-3 bg-red-50 rounded-xl border border-red-100">
-                <p class="text-[9px] font-black text-red-600 uppercase mb-1 flex items-center gap-1">
-                    <span class="material-icons text-xs">gpp_maybe</span> VALIDACIÓN REQUERIDA:
-                </p>
-                <div class="text-[9px] font-bold text-slate-600 leading-tight space-y-0.5">
-                    <p>• Revisar 5 puntos de estiba correcta.</p>
-                    <p>• Validar LPN vs Etiquetado físico.</p>
-                    <p>• Confirmar ubicación física exacta.</p>
+                <p class="text-[9px] font-black text-red-600 uppercase mb-1 flex items-center gap-1"><span class="material-icons text-xs">gpp_maybe</span> VALIDACIÓN:</p>
+                <div class="text-[8px] font-bold text-slate-600 leading-tight">
+                    • Estiba correcta • LPN vs Físico • Ubicación exacta
                 </div>
             </div>
 
@@ -124,7 +129,7 @@
     let store = {}, curZ = 'seco';
 
     const CONFIG = {
-        seco: [{id:'A',s:10,m:1140,t:'both'},{id:'B',s:10,m:1140,t:'both'},{id:'C',s:20,m:1140,t:'C_SPECIAL'},{id:'D',s:10,m:1350,t:'both'},{id:'E',s:10,m:1350,t:'both'},{id:'F',s:10,m:1140,t:'both'},{id:'G',s:10,m:1140,t:'both'},{id:'H',s:10,m:1140,t:'both'},{id:'I',s:10,m:1140,t:'non'}],
+        seco: [{id:'A',s:10,m:1140,t:'both'},{id:'B',s:10,m:1140,t:'both'},{id:'C',s:10,m:1140,t:'C_SPECIAL'},{id:'D',s:10,m:1350,t:'both'},{id:'E',s:10,m:1350,t:'both'},{id:'F',s:10,m:1140,t:'both'},{id:'G',s:10,m:1140,t:'both'},{id:'H',s:10,m:1140,t:'both'},{id:'I',s:10,m:1140,t:'non'}],
         refri: [{id:'J',s:20,m:440,t:'par'},{id:'K',s:10,m:440,t:'both'},{id:'L',s:10,m:440,t:'both'}],
         conge: [{id:'M',s:10,m:1140,t:'both'},{id:'N',s:10,m:1140,t:'both'},{id:'O',s:10,m:1140,t:'both'},{id:'P',s:10,m:1140,t:'both'},{id:'Q',s:10,m:830,t:'non'}]
     };
@@ -140,9 +145,14 @@
         let h = '';
         for(let i=a.s; i<=a.m; i+=10) {
             const isPar = i % 20 === 0;
-            if(a.t === 'C_SPECIAL') { if(!isPar && i < 290) continue; }
-            else if(a.t === 'non' && isPar) continue;
+            // PASILLO C: Lado izquierdo (non) vacío hasta la 290
+            if(a.id === 'C' && !isPar && i < 290) {
+                h += `<div class="h-[32px] invisible"></div>`;
+                continue;
+            }
+            if(a.t === 'non' && isPar) continue;
             else if(a.t === 'par' && !isPar) continue;
+            
             const id = `${a.id}${String(i).padStart(4,'0')}`;
             h += `<div id="${id}" onclick="edit('${id}')" class="slot">${id.slice(-4)}</div>`;
         }
@@ -154,11 +164,12 @@
         let tRuta=0, tProd=0;
         slots.forEach(el => {
             const d = store[el.id]; el.classList.remove('occ-emb','occ-pro','stagnant','recent');
+            el.innerText = el.id.slice(-4); // LIMPIA SIEMPRE EL RACK
             if(d) {
                 if(d.r) { el.classList.add('occ-emb'); tRuta++; } else { el.classList.add('occ-pro'); tProd++; }
                 const age = Date.now() - d.t;
-                if(age > 86400000) el.classList.add('stagnant');
-                else if(age < 14400000) el.classList.add('recent');
+                if(age > 86400000) el.classList.add('stagnant'); // 24h
+                else if(age < 14400000) el.classList.add('recent'); // 4h
             }
         });
         document.getElementById('st-perc').innerText = Math.round(((tRuta+tProd)/slots.length)*100)+"%";
@@ -167,6 +178,13 @@
         document.getElementById('st-p').innerText = tProd;
     }
 
+    window.setUnit = (u) => {
+        document.getElementById('f-unit').value = u;
+        document.getElementById('btn-box').classList.toggle('active', u === '📦');
+        document.getElementById('btn-pack').classList.toggle('active', u === '🥡');
+        document.getElementById('btn-piece').classList.toggle('active', u === '🍎');
+    };
+
     window.edit = (id) => {
         document.getElementById('empty-state').classList.add('hidden');
         document.getElementById('editor').classList.remove('hidden');
@@ -174,7 +192,7 @@
         const d = store[id] || {};
         document.getElementById('f-ruta').value = d.r||''; document.getElementById('f-tienda').value = d.ti||'';
         document.getElementById('f-sku').value = d.s||''; document.getElementById('f-dt').value = d.dt||'';
-        document.getElementById('f-cm-r').value = d.cmr||''; document.getElementById('f-cm-p').value = d.cmp||'';
+        setUnit(d.u || '');
         document.querySelectorAll('.slot').forEach(s => s.classList.remove('highlight'));
         if(document.getElementById(id)) document.getElementById(id).classList.add('highlight');
     };
@@ -186,7 +204,7 @@
             ti: document.getElementById('f-tienda').value.toUpperCase(), 
             s: document.getElementById('f-sku').value.toUpperCase(), 
             dt: document.getElementById('f-dt').value.toUpperCase(),
-            cmr: document.getElementById('f-cm-r').value, cmp: document.getElementById('f-cm-p').value,
+            u: document.getElementById('f-unit').value,
             t: Date.now() 
         });
         closeEditor();
@@ -198,15 +216,20 @@
 
     window.doSearch = (v) => {
         const r = document.getElementById('results'); if(v.length<2){r.classList.add('hidden');return;}
-        const f = Object.entries(store).filter(([id, d]) => id.includes(v.toUpperCase()) || (d.r && d.r.includes(v.toUpperCase())) || (d.ti && d.ti.includes(v.toUpperCase())));
-        r.innerHTML = f.map(([id, d]) => `<div class="p-2 border-b hover:bg-slate-50 cursor-pointer" onclick="goTo('${id}')"><div class="flex justify-between font-black text-[10px] text-[#005782]"><span>${id}</span><span>${d.r || 'STOCK'}</span></div></div>`).join('');
+        const term = v.toUpperCase();
+        const f = Object.entries(store).filter(([id, d]) => id.includes(term) || (d.r && d.r.includes(term)) || (d.s && d.s.includes(term)) || (d.ti && d.ti.includes(term)));
+        r.innerHTML = f.map(([id, d]) => `
+            <div class="p-3 border-b hover:bg-slate-50 cursor-pointer" onclick="goTo('${id}')">
+                <div class="flex justify-between font-black text-xs text-[#005782]"><span>${id}</span><span>${d.u||''} ${d.r || 'STOCK'}</span></div>
+                <div class="text-[9px] text-slate-400 font-bold">${d.s || ''} ${d.ti || ''}</div>
+            </div>`).join('');
         r.classList.remove('hidden');
     };
 
     window.goTo = (id) => {
         const L = id[0]; const z = ['A','B','C','D','E','F','G','H','I'].includes(L)?'seco':(['J','K','L'].includes(L)?'refri':'conge');
         if(curZ !== z) render(z);
-        setTimeout(() => { const el = document.getElementById(id); if(el){el.scrollIntoView({behavior:'smooth',block:'center',inline:'center'});edit(id);} }, 300);
+        setTimeout(() => { const el = document.getElementById(id); if(el){el.scrollIntoView({behavior:'smooth',block:'center'});edit(id);} }, 300);
         document.getElementById('results').classList.add('hidden'); document.getElementById('search').value="";
     };
 
