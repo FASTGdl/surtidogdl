@@ -1,0 +1,247 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <title>F.A.S.T. | Surtido Gdl</title>
+    
+    <link href="https://fonts.googleapis.com/css2?family=Bitter:wght@700&family=Fira+Sans:wght@400;700;900&display=swap" rel="stylesheet">
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
+
+    <style>
+        :root { --alsea-blue: #005782; --strawberry: #F04D62; --sun: #FFCD5B; --cream: #F3EBDA; --sand: #DDD6B4; }
+        body { font-family: 'Fira Sans', sans-serif; background-color: var(--cream); height: 100vh; display: flex; overflow: hidden; margin: 0; }
+        .sidebar { width: 340px; min-width: 340px; background: white; border-right: 2px solid var(--sand); display: flex; flex-direction: column; z-index: 100; }
+        .main-view { flex-grow: 1; display: flex; flex-direction: column; overflow: hidden; }
+        .map-viewport { flex-grow: 1; display: flex; gap: 12px; padding: 15px; overflow-x: auto; -webkit-overflow-scrolling: touch; scroll-behavior: smooth; }
+        .aisle-container { display: flex; flex-direction: column; min-width: 140px; background: white; border-radius: 12px; border: 1px solid var(--sand); box-shadow: 0 2px 4px rgba(0,0,0,0.05); }
+        .aisle-header { background: var(--alsea-blue); color: white; font-family: 'Bitter', serif; padding: 8px; text-align: center; border-radius: 12px 12px 0 0; font-size: 14px; }
+        .aisle-scroll { flex-grow: 1; overflow-y: auto; padding: 8px; }
+        .rack-grid { display: grid; gap: 4px; }
+        .slot { height: 32px; border: 1px solid var(--sand); border-radius: 5px; display: flex; align-items: center; justify-content: center; font-size: 10px; font-weight: 800; color: #94a3b8; cursor: pointer; transition: 0.2s; background: white; position: relative; }
+        
+        .slot.multi::after { content: 'add'; font-family: 'Material Icons'; position: absolute; top: 0; right: 0; font-size: 8px; color: white; background: var(--strawberry); border-radius: 0 4px 0 4px; padding: 1px; }
+        .slot.occ-emb { background: #f97316 !important; color: white !important; border: none; }
+        .slot.occ-pro { background: var(--alsea-blue) !important; color: white !important; border: none; }
+        .slot.stagnant { border: 2.5px solid var(--strawberry) !important; }
+        .slot.recent { border: 2.5px solid #22c55e !important; }
+        .highlight { outline: 4px solid var(--sun); transform: scale(1.08); z-index: 50; box-shadow: 0 0 20px var(--sun); }
+
+        .input-group { border-radius: 12px; padding: 10px; border-left-width: 4px; }
+        input { background: transparent; width: 100%; outline: none; font-weight: 700; text-transform: uppercase; }
+        .unit-btn { flex: 1; padding: 6px; border-radius: 10px; border: 2px solid #f1f5f9; display: flex; flex-direction: column; align-items: center; background: white; color: #94a3b8; }
+        .unit-btn.active { border-color: var(--alsea-blue); background: #f0f9ff; color: var(--alsea-blue); }
+        
+        #camera-box { width: 100%; height: 120px; background: #f8fafc; border: 2px dashed #cbd5e1; border-radius: 15px; overflow: hidden; cursor: pointer; display: flex; align-items: center; justify-content: center; }
+        .level-tab { padding: 6px 12px; font-size: 9px; font-weight: 900; border-radius: 8px; cursor: pointer; background: #f1f5f9; color: #94a3b8; }
+        .level-tab.active { background: var(--alsea-blue); color: white; }
+    </style>
+</head>
+<body>
+
+    <aside class="sidebar">
+        <div class="p-5 pb-2 flex items-center gap-3">
+            <div class="bg-[#005782] p-1.5 rounded-lg text-white shadow"><span class="material-icons text-xl">speed</span></div>
+            <div><h1 style="font-family:'Bitter'" class="text-xl font-black text-[#005782] leading-none italic">F.A.S.T.</h1><p class="text-[9px] font-bold text-slate-400 uppercase tracking-widest">Surtido Gdl</p></div>
+        </div>
+
+        <div class="px-5 mb-3 relative">
+            <span class="material-icons absolute left-8 top-2.5 text-slate-400 text-sm">search</span>
+            <input type="text" id="search" oninput="doSearch(this.value)" placeholder="Buscar SKU, Ruta o Ubicación..." class="w-full bg-slate-100 p-2.5 pl-9 rounded-xl text-xs font-bold border-2 border-transparent focus:border-[#005782]">
+            <div id="results" class="absolute left-5 right-5 bg-white z-[200] rounded-xl shadow-2xl mt-1 hidden max-h-80 overflow-y-auto border border-sand"></div>
+        </div>
+
+        <div id="editor" class="hidden px-5 space-y-2 overflow-y-auto pb-6">
+            <div class="flex justify-between items-center mb-1">
+                <span id="target-display" class="text-2xl font-black italic text-[#005782] leading-none">---</span>
+                <div class="flex gap-1" id="level-container"></div>
+            </div>
+            <div id="camera-box" onclick="triggerCamera()"><img id="f-img-view" src="" class="hidden w-full h-full object-contain"><div id="f-img-empty" class="text-slate-400 flex flex-col items-center"><span class="material-icons text-3xl">add_a_photo</span><p class="text-[8px] font-black uppercase mt-1">Foto</p></div></div>
+            <div class="input-group bg-orange-50 border-[#f97316]"><label class="text-[9px] font-black text-orange-600 uppercase block mb-1">Ruta</label><input type="text" id="f-ruta" placeholder="RUTA" class="text-base border-b border-orange-100 mb-1"><input type="text" id="f-tienda" placeholder="TIENDA" class="text-xs"></div>
+            <div class="input-group bg-blue-50 border-[#005782]"><label class="text-[9px] font-black text-blue-600 uppercase block mb-1">Producto / Stock</label><input type="text" id="f-sku" placeholder="SKU / NOMBRE" class="text-base border-b border-blue-100 mb-1"><input type="text" id="f-dt" placeholder="CANTIDAD" class="text-xs"></div>
+            <div class="flex gap-1"><button onclick="setUnit('📦')" id="btn-box" class="unit-btn"><span class="material-icons text-sm">inventory_2</span><b class="text-[7px]">CAJA</b></button><button onclick="setUnit('🥡')" id="btn-pack" class="unit-btn"><span class="material-icons text-sm">all_inbox</span><b class="text-[7px]">PQTE</b></button><button onclick="setUnit('🍎')" id="btn-piece" class="unit-btn"><span class="material-icons text-sm">category</span><b class="text-[7px]">PZA</b></button></div>
+            <div class="flex gap-2"><button onclick="save()" class="flex-grow bg-[#005782] text-white py-3 rounded-xl font-black uppercase text-xs shadow-lg">Guardar</button><button onclick="addExtra()" id="btn-add-extra" class="bg-emerald-500 text-white px-4 rounded-xl shadow-lg"><span class="material-icons">add</span></button></div>
+            <button onclick="del()" class="w-full text-red-400 py-1 text-[9px] font-black uppercase">Vaciar Nivel</button>
+        </div>
+
+        <div id="empty-state" class="flex-grow flex flex-col items-center justify-center text-slate-300 text-center px-10">
+            <span class="material-icons text-5xl mb-2 opacity-10">place</span>
+            <p class="text-xs italic">Selecciona una posición</p>
+        </div>
+    </aside>
+
+    <main class="main-view">
+        <header class="bg-white border-b-2 border-sand p-4 flex justify-between items-center shadow-sm">
+            <div class="flex gap-5">
+                <div class="flex flex-col"><span class="text-[8px] font-black text-slate-400 uppercase">Ocupación</span><span class="text-lg font-black text-slate-700" id="st-perc">0%</span></div>
+                <div class="border-l pl-5 flex flex-col"><span class="text-[8px] font-black text-orange-500 uppercase">En Ruta</span><span class="text-lg font-black text-orange-500" id="st-r">0</span></div>
+                <div class="border-l pl-5 flex flex-col"><span class="text-[8px] font-black text-[#005782] uppercase">En Stock</span><span class="text-lg font-black text-[#005782]" id="st-p">0</span></div>
+                <div class="border-l pl-5 flex flex-col"><span class="text-[8px] font-black text-emerald-600 uppercase">Libres</span><span class="text-lg font-black text-emerald-600" id="st-free">0</span></div>
+            </div>
+            <nav class="bg-slate-100 p-1 rounded-xl flex gap-1">
+                <button onclick="render('seco')" id="btn-seco" class="px-5 py-2.5 rounded-lg text-[10px] font-black uppercase">Secos</button>
+                <button onclick="render('refri')" id="btn-refri" class="px-5 py-2.5 rounded-lg text-[10px] font-black uppercase">Refri</button>
+                <button onclick="render('conge')" id="btn-conge" class="px-5 py-2.5 rounded-lg text-[10px] font-black uppercase">Conge</button>
+            </nav>
+        </header>
+        <div class="map-viewport" id="map-area"></div>
+    </main>
+
+<script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
+    import { getDatabase, ref, set, onValue, remove } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-database.js";
+
+    const fb = { apiKey: "AIzaSyAMVa_jOP06739GhFqMTEGEwUgjJVqPg_M", databaseURL: "https://almacen-67bd1-default-rtdb.firebaseio.com", projectId: "almacen-67bd1" };
+    const app = initializeApp(fb); const db = getDatabase(app);
+    let store = {}, curZ = 'seco', baseU = '', curL = 1, currentImg = '', selU = '';
+
+    const CONFIG = {
+        seco: [{id:'A',s:10,m:1140,t:'both'},{id:'B',s:10,m:1140,t:'both'},{id:'C',s:10,m:1140,t:'C_SPEC'},{id:'D',s:10,m:1350,t:'both'},{id:'E',s:10,m:1350,t:'both'},{id:'F',s:10,m:1140,t:'both'},{id:'G',s:10,m:1140,t:'both'},{id:'H',s:10,m:1140,t:'both'},{id:'I',s:10,m:1140,t:'non'}],
+        refri: [{id:'J',s:20,m:440,t:'par'},{id:'K',s:10,m:440,t:'both'},{id:'L',s:10,m:440,t:'both'}],
+        conge: [{id:'M',s:10,m:1140,t:'both'},{id:'N',s:10,m:1140,t:'both'},{id:'O',s:10,m:1140,t:'both'},{id:'P',s:10,m:1140,t:'both'},{id:'Q',s:10,m:830,t:'non'}]
+    };
+
+    window.render = (z) => {
+        curZ = z;
+        ['seco','refri','conge'].forEach(n => {
+            const b = document.getElementById('btn-'+n);
+            if(b) b.className = n===z ? 'px-5 py-2.5 rounded-lg text-[10px] font-black uppercase bg-white shadow text-[#005782]' : 'px-5 py-2.5 rounded-lg text-[10px] font-black uppercase text-slate-400';
+        });
+        document.getElementById('map-area').innerHTML = CONFIG[z].map(a => `<div class="aisle-container"><div class="aisle-header">${a.id}</div><div class="aisle-scroll"><div class="rack-grid ${a.t==='both'||a.t==='C_SPEC'?'grid-cols-2':'grid-cols-1'}">${build(a)}</div></div></div>`).join('');
+        sync();
+    };
+
+    function build(a) {
+        let h = '';
+        for(let i=a.s; i<=a.m; i+=10) {
+            const isPar = i % 20 === 0;
+            if(a.id === 'C' && !isPar && i < 290) { h += `<div class="h-[32px] invisible"></div>`; continue; }
+            if(a.t === 'non' && isPar) continue; else if(a.t === 'par' && !isPar) continue;
+            const id = `${a.id}${String(i).padStart(4,'0')}`;
+            h += `<div id="${id}" onclick="edit('${id}')" class="slot">${id.slice(-4)}</div>`;
+        }
+        return h;
+    }
+
+    function sync() {
+        const slots = document.querySelectorAll('.slot[id]');
+        let totalRutas=0, totalStock=0, racksOcupados=0;
+        
+        slots.forEach(el => {
+            el.classList.remove('occ-emb','occ-pro','stagnant','recent','multi','highlight');
+            const lvls = [store[el.id], store[el.id+'-1'], store[el.id+'-2'], store[el.id+'-3']].filter(l => l);
+            
+            if(lvls.length > 0) {
+                racksOcupados++;
+                if(lvls.length > 1) el.classList.add('multi');
+                
+                // Procesar cada nivel para el contador total
+                lvls.forEach(l => {
+                    if(l.r) totalRutas++; else totalStock++;
+                });
+
+                // Color visual basado en el nivel 1
+                const d = lvls[0];
+                if(d.r) el.classList.add('occ-emb'); else el.classList.add('occ-pro');
+                if(Date.now() - d.t > 86400000) el.classList.add('stagnant');
+                else if(Date.now() - d.t < 14400000) el.classList.add('recent');
+            }
+        });
+
+        document.getElementById('st-perc').innerText = slots.length ? Math.round((racksOcupados/slots.length)*100)+"%" : "0%";
+        document.getElementById('st-r').innerText = totalRutas;
+        document.getElementById('st-p').innerText = totalStock;
+        document.getElementById('st-free').innerText = slots.length - racksOcupados;
+    }
+
+    window.edit = (id) => {
+        baseU = id.split('-')[0];
+        curL = id.includes('-') ? parseInt(id.split('-')[1]) : 1;
+        document.getElementById('empty-state').classList.add('hidden');
+        document.getElementById('editor').classList.remove('hidden');
+        updateTabs(); loadLevel(curL);
+        document.querySelectorAll('.slot').forEach(s => s.classList.remove('highlight'));
+        if(document.getElementById(baseU)) document.getElementById(baseU).classList.add('highlight');
+    };
+
+    function updateTabs() {
+        const cont = document.getElementById('level-container');
+        let activeLvls = [1];
+        if(store[baseU+'-2']) activeLvls.push(2);
+        if(store[baseU+'-3']) activeLvls.push(3);
+        cont.innerHTML = activeLvls.map(l => `<div onclick="loadLevel(${l})" class="level-tab ${l===curL?'active':''}" id="tab-${l}">${l}</div>`).join('');
+        document.getElementById('btn-add-extra').classList.toggle('hidden', activeLvls.length >= 3);
+    }
+
+    window.addExtra = () => { let n = store[baseU+'-2'] ? 3 : 2; curL = n; updateTabs(); loadLevel(n); };
+
+    window.loadLevel = (l) => {
+        curL = l; document.querySelectorAll('.level-tab').forEach(t => t.classList.toggle('active', t.innerText == l));
+        const fullId = l === 1 ? baseU : baseU + '-' + l;
+        let d = store[fullId] || (l===1 ? store[baseU+'-1'] : null) || {};
+        document.getElementById('f-ruta').value = d.r||''; document.getElementById('f-tienda').value = d.ti||'';
+        document.getElementById('f-sku').value = d.s||''; document.getElementById('f-dt').value = d.dt||'';
+        currentImg = d.img || ''; displayImg(currentImg); setUnit(d.u || '');
+        document.getElementById('target-display').innerText = fullId;
+    };
+
+    window.save = () => {
+        const fullId = curL === 1 ? baseU : baseU + '-' + curL;
+        set(ref(db, 'almacen/'+fullId), { 
+            r: document.getElementById('f-ruta').value.toUpperCase(), 
+            ti: document.getElementById('f-tienda').value.toUpperCase(), 
+            s: document.getElementById('f-sku').value.toUpperCase(), 
+            dt: document.getElementById('f-dt').value.toUpperCase(),
+            img: currentImg, u: selU, t: Date.now() 
+        });
+        closeEditor();
+    };
+
+    window.del = () => { if(confirm("¿Vaciar nivel?")) { remove(ref(db, 'almacen/'+(curL===1?baseU:baseU+'-'+curL))); if(curL===1) remove(ref(db, 'almacen/'+baseU+'-1')); } closeEditor(); };
+    window.closeEditor = () => { document.getElementById('editor').classList.add('hidden'); document.getElementById('empty-state').classList.remove('hidden'); document.querySelectorAll('.slot').forEach(s => s.classList.remove('highlight')); };
+    
+    onValue(ref(db, 'almacen/'), s => { store = s.val() || {}; sync(); });
+
+    window.doSearch = (v) => {
+        const r = document.getElementById('results'); if(v.length<2){r.classList.add('hidden');return;}
+        const term = v.toUpperCase();
+        const f = Object.entries(store).filter(([id, d]) => id.includes(term) || (d.r && d.r.includes(term)) || (d.s && d.s.includes(term)) || (d.ti && d.ti.includes(term)));
+        r.innerHTML = f.map(([id, d]) => `<div class="p-3 border-b hover:bg-slate-50 cursor-pointer" onclick="goTo('${id}')"><div class="flex justify-between font-black text-xs text-[#005782]"><span>${id}</span><span>${d.u||''} ${d.r || 'STOCK'}</span></div><div class="text-[9px] text-slate-400 font-bold uppercase">${d.s || ''} ${d.ti ? '• '+d.ti : ''}</div></div>`).join('');
+        r.classList.toggle('hidden', f.length === 0);
+    };
+
+    window.goTo = (id) => {
+        const base = id.split('-')[0]; const L = base.charAt(0);
+        let z = 'seco';
+        if(['J','K','L'].includes(L)) z = 'refri'; else if(['M','N','O','P','Q'].includes(L)) z = 'conge';
+        render(z);
+        setTimeout(() => { const el = document.getElementById(base); if(el) { el.scrollIntoView({behavior:'smooth', block:'center'}); edit(id); } }, 300);
+        document.getElementById('results').classList.add('hidden'); document.getElementById('search').value = "";
+    };
+
+    window.triggerCamera = () => {
+        const input = document.createElement('input'); input.type = 'file'; input.accept = 'image/*'; input.capture = 'environment';
+        input.onchange = (e) => {
+            const reader = new FileReader(); reader.onload = (re) => {
+                const img = new Image(); img.onload = () => {
+                    const canvas = document.createElement('canvas'); const MAX = 400; let w = img.width, h = img.height;
+                    if (w > h) { if (w > MAX) { h *= MAX / w; w = MAX; } } else { if (h > MAX) { w *= MAX / h; h = MAX; } }
+                    canvas.width = w; canvas.height = h; canvas.getContext('2d').drawImage(img, 0, 0, w, h);
+                    currentImg = canvas.toDataURL('image/jpeg', 0.6); displayImg(currentImg);
+                }; img.src = re.target.result;
+            }; reader.readAsDataURL(e.target.files[0]);
+        }; input.click();
+    };
+
+    function displayImg(data) {
+        const v = document.getElementById('f-img-view'), e = document.getElementById('f-img-empty');
+        if(data) { v.src = data; v.classList.remove('hidden'); e.classList.add('hidden'); } else { v.classList.add('hidden'); e.classList.remove('hidden'); }
+    }
+
+    window.setUnit = (u) => { selU = u; ['box', 'pack', 'piece'].forEach(n => { const b = document.getElementById('btn-'+n); if(b) b.classList.toggle('active', u === (n==='box'?'📦':(n==='pack'?'🥡':'🍎'))); }); };
+    window.onload = () => render('seco');
+</script>
+</body>
+</html>
